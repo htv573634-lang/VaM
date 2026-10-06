@@ -1,0 +1,65 @@
+name: Extract VaM Base Mesh
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install UnityPy requests
+
+      - name: Download VaM depot manifest
+        run: |
+          # SteamDB depot 2149831 manifest for VaM
+          # The manifest lists all files with their SHA hashes
+          python -c "
+          import requests, json
+          url = 'https://steamdb.info/api/DepotManifest/?depotid=2149831'
+          headers = {'User-Agent': 'Mozilla/5.0'}
+          r = requests.get(url, headers=headers)
+          print('Status:', r.status_code)
+          if r.status_code == 200:
+              data = r.json()
+              with open('vam_manifest.json', 'w') as f:
+                  json.dump(data, f, indent=2)
+              print('Manifest saved')
+          else:
+              print('Failed to fetch manifest')
+          "
+
+      - name: List female mesh files
+        run: |
+          python -c "
+          import json
+          with open('vam_manifest.json') as f:
+              data = json.load(f)
+          # Find files starting with f_
+          for item in data.get('files', []):
+              name = item.get('name', '')
+              if name.startswith('f_') and '_mat' not in name:
+                  print(f\"{name} | {item.get('size', 0)} bytes\")
+          "
+
+      - name: Extract mesh (when available)
+        run: |
+          echo "Mesh extraction requires the actual depot download"
+          echo "See README for manual extraction steps"
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: vam-manifest
+          path: vam_manifest.json
